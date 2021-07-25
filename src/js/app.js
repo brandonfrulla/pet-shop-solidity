@@ -2,13 +2,13 @@ App = {
   web3Provider: null,
   contracts: {},
 
-  init: async function() {
+  init: async function () {
     // Load pets.
-    $.getJSON('../pets.json', function(data) {
+    $.getJSON('../pets.json', function (data) {
       var petsRow = $('#petsRow');
       var petTemplate = $('#petTemplate');
 
-      for (i = 0; i < data.length; i ++) {
+      for (i = 0; i < data.length; i++) {
         petTemplate.find('.panel-title').text(data[i].name);
         petTemplate.find('img').attr('src', data[i].picture);
         petTemplate.find('.pet-breed').text(data[i].breed);
@@ -23,94 +23,99 @@ App = {
     return await App.initWeb3();
   },
 
-  initWeb3: async function() {
+  initWeb3: async function () {
     //modern dapp browsers..
     if (window.ethereum) {
-        App.web3Provider = window.ethereum;
-        try{
-            // Request account access
-            await window.ethereum.enable();
-        } catch(error) {
-            // User denied
-            console.error("User denied account access");
-        }
+      App.web3Provider = window.ethereum;
+      try {
+        // Request account access
+        await window.ethereum.enable();
+      } catch (error) {
+        // User denied
+        console.error("User denied account access");
+      }
     }
     //Legacy dapp browsers 
     else if (window.web3) {
-        App.web3Provider = window.web3.currentProvider;
+      App.web3Provider = window.web3.currentProvider;
     }
     //no injected web3, fall back to Ganache -- NOT SUITABLE FOR PROD ENVS
-     else{
-        App.web3Provider = new Web3.providers.HttpProvider('http://localhost:7545');
+    else {
+      App.web3Provider = new Web3.providers.HttpProvider('http://localhost:7545');
     }
     web3 = new Web3(App.web3Provider);
     return App.initContract();
   },
 
-  initContract: function() {
-    //get the contract artifact and instantiate it
-    var AdoptionArtifact = data;
-    App.contracts.Adoption = TruffleContract(AdoptionArtifact);
 
-    //set provider for contract
-    App.contracts.Adoption.setProvider(App.web3Provider);
+  initContract: function () {
 
-    //marks adopted pets via artifact data in the contract
-    return App.bindEvents();
+    $.getJSON('Adoption.json', function (data) {
+      //get the contract artifact and instantiate it
+      var AdoptionArtifact = data;
+      App.contracts.Adoption = TruffleContract(AdoptionArtifact);
+
+      //set provider for contract
+      App.contracts.Adoption.setProvider(App.web3Provider);
+
+      //marks adopted pets via artifact data in the contract
+      return App.bindEvents();
+    })
   },
 
-  bindEvents: function() {
+  bindEvents: function () {
     $(document).on('click', '.btn-adopt', App.handleAdopt);
   },
 
-  markAdopted: function() {
+  markAdopted: function () {
     var adoptionInstance;
 
-    App.contracts.Adoption.deployed().then(function(instance) {
-        adoptionInstance = instance;
-        return adoptionInstance.getAdopters.call();
-    }).then(function(adopters) {
-        for (i = 0; i < adopters.length; i++) {
-            if (adopters[i] !== '0x0000000000000000000000000000000000000000') {
-                $('.panel-pet').eq(i).find('button').text('Success').attr('disabled', true);
-            }
+    App.contracts.Adoption.deployed().then(function (instance) {
+      adoptionInstance = instance;
+      return adoptionInstance.getAdopters.call();
+    }).then(function (adopters) {
+      for (i = 0; i < adopters.length; i++) {
+        if (adopters[i] !== '0x0000000000000000000000000000000000000000') {
+          $('.panel-pet').eq(i).find('button').text('Success').attr('disabled', true);
         }
-    }).catch(function(err) {
-        console.log(err.message);
+      }
+    }).catch(function (err) {
+      console.log(err.message);
     });
   },
 
-  handleAdopt: function(event) {
+  handleAdopt: function (event) {
     event.preventDefault();
 
     var petId = parseInt($(event.target).data('id'));
+    console.log('pet id selected: ', petId);
 
     var adoptionInstance;
 
-    web3.eth.getAccounts(function(error,accounts) {
-        if(error) {
-            console.log(error);
-        }
-    
-        var account = accounts[0];
+    web3.eth.getAccounts(function (error, accounts) {
+      if (error) {
+        console.log(error);
+      }
 
-        App.contracts.Adoption.deployed().then(function(instance) {
-            adoptionInstance = instance;
+      var account = accounts[0];
 
-            return adoptionInstance.adopt(petId, {from: account});
-        }).then(function(result) {
-            return App.markAdopted();
-        }).catch(function(err) {
-            console.log(err.message);
-        });
+      App.contracts.Adoption.deployed().then(function (instance) {
+        adoptionInstance = instance;
+
+        // Execute adopt as a transaction by sending account
+        return adoptionInstance.adopt(petId, { from: account });
+      }).then(function (result) {
+        return App.markAdopted();
+      }).catch(function (err) {
+        console.log(err.message);
+      });
     });
 
-  }
+  },
+},
 
-};
-
-$(function() {
-  $(window).load(function() {
-    App.init();
+  $(function () {
+    $(window).load(function () {
+      App.init();
+    });
   });
-});
